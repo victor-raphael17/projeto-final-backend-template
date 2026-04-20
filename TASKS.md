@@ -87,13 +87,7 @@
 - [] Criar notificação automaticamente ao: curtir, comentar, seguir
   - (pode ser via Observer do Eloquent ou chamada direta na Service)
 
-### 10 - Explorar
-- [] GET /api/explore — posts populares (mais curtidas nas últimas 48h)
-- [] Excluir posts de quem o usuário já segue
-- [] Paginação
-- [] ExploreService (query com orderBy na contagem de likes recentes)
-
-### 11 - Finalização
+### 10 - Finalização
 - [] Seeders completos (usuários, posts, follows, likes, comentários)
 - [] Testar todos os endpoints (Postman/Insomnia/Curl)
 - [] Documentar API (Swagger UI)
