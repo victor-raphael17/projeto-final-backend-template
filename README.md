@@ -43,7 +43,3 @@ Os usuários podem comentar em posts. Cada comentário pertence a um usuário e 
 ### Notificações
 
 As notificações são geradas automaticamente quando alguém curte um post, comenta ou começa a seguir o usuário. Elas são armazenadas no banco com tipo, dados em JSON e status de leitura. O frontend consulta as notificações via polling (requisições periódicas), sem necessidade de websockets.
-
-### Explorar
-
-A página Explorar exibe posts populares de usuários que o perfil autenticado ainda não segue, com paginação. A popularidade é calculada com base na contagem de curtidas nas últimas 48 horas. Esse endpoint utiliza uma service layer com queries mais elaboradas envolvendo subqueries e ordenação por agregação.
