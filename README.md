@@ -10,7 +10,7 @@ O projeto é dividido em duas partes independentes: o backend (API) e o frontend
 
 ### O que é
 
-Uma API RESTful construída com Laravel que gerencia toda a lógica de uma rede social: usuários, publicações e interações sociais. A API não possui views — toda a comunicação acontece via JSON, simulando o backend de um aplicativo moderno.
+Uma API RESTful construída com Laravel que gerencia toda a lógica de uma rede social: usuários, publicações e interações sociais. A API não possui views — toda a comunicação acontece via JSON, serializada por API Resources tipados (`UserResource`, `PostResource`, `CommentResource`, `NotificationResource`), simulando o backend de um aplicativo moderno.
 
 ### Autenticação
 
@@ -22,11 +22,11 @@ Cada usuário possui um perfil público com username único, foto de avatar, bio
 
 ### Sistema de Follow
 
-Os usuários podem seguir e deixar de seguir outros perfis. O relacionamento é muitos-para-muitos auto-referencial na tabela de usuários — uma mesma tabela se relaciona consigo mesma. A API disponibiliza listagem de seguidores, seguindo e verificação se um usuário segue outro.
+Os usuários podem seguir e deixar de seguir outros perfis. O relacionamento é muitos-para-muitos auto-referencial na tabela de usuários — uma mesma tabela se relaciona consigo mesma. O par seguir/desseguir compartilha a mesma URL (`POST` e `DELETE` em `/api/users/{id}/follow`), e a tentativa de seguir a si mesmo é bloqueada no `FollowService` via `SelfFollowException` (403). A API disponibiliza listagem de seguidores, seguindo e verificação se um usuário segue outro.
 
 ### Posts
 
-Os usuários criam publicações com upload de imagem e legenda. Cada post pertence a um único usuário. Apenas o dono do post pode editá-lo ou deletá-lo, o que é garantido por middlewares e policies. A API retorna os posts de um usuário específico e também o detalhe individual de cada post.
+Os usuários criam publicações com upload de imagem e legenda. Cada post pertence a um único usuário. Apenas o dono do post pode editá-lo ou deletá-lo, o que é garantido pela `PostPolicy`. A API retorna os posts de um usuário específico e também o detalhe individual de cada post.
 
 ### Feed
 
@@ -34,15 +34,15 @@ O feed é o coração da rede social. Ele retorna os posts das pessoas que o usu
 
 ### Curtidas
 
-Os usuários podem curtir e descurtir posts. Cada curtida é um registro único (um usuário só pode curtir um post uma vez). A API retorna a contagem de curtidas e a lista de quem curtiu cada post.
+Os usuários podem curtir e descurtir posts. Cada curtida é um registro único (um usuário só pode curtir um post uma vez). Curtir e descurtir compartilham a mesma URL (`POST` e `DELETE` em `/api/posts/{id}/like`) e o endpoint devolve a contagem atualizada sem exigir um `GET` extra do cliente. A API também expõe a lista de quem curtiu cada post.
 
 ### Comentários
 
-Os usuários podem comentar em posts. Cada comentário pertence a um usuário e a um post. Apenas o autor do comentário pode editá-lo ou deletá-lo. Os comentários são listados de forma paginada dentro de cada post.
+Os usuários podem comentar em posts. Cada comentário pertence a um usuário e a um post. Apenas o autor do comentário pode editá-lo ou deletá-lo, o que é garantido pela `CommentPolicy`. Os comentários são listados de forma paginada dentro de cada post.
 
 ### Notificações
 
-As notificações são geradas automaticamente quando alguém curte um post, comenta ou começa a seguir o usuário. Elas são armazenadas no banco com tipo, dados em JSON e status de leitura. A API expõe `GET /api/notifications`, `GET /api/notifications/unread-count` e `PUT /api/notifications/read` para consumo futuro — o frontend atual ainda não tem tela dedicada para notificações.
+As notificações são geradas automaticamente quando alguém curte um post, comenta ou começa a seguir o usuário. Elas são armazenadas no banco com tipo (enum `NotificationType`: `like`, `comment`, `follow`), dados em JSON e status de leitura. A API expõe `GET /api/notifications`, `GET /api/notifications/unread-count` e `PUT /api/notifications/read` para consumo futuro — o frontend atual ainda não tem tela dedicada para notificações.
 
 ### Dockerização
 
@@ -63,10 +63,48 @@ O diretório `docker/` contém os arquivos auxiliares copiados para dentro da im
 - **`docker/entrypoint.sh`** — script que roda antes do FrankenPHP subir. Ele garante que exista um `.env` (copiando do `.env.example` se necessário), gera a `APP_KEY` quando vazia, espera o MySQL ficar pronto via `mysqladmin ping` (com retry de até 60s), roda `php artisan migrate --force` quando `RUN_MIGRATIONS=true`, aplica os caches do Laravel (`config:cache`, `route:cache`, `event:cache`) em produção ou limpa-os em dev, e executa `php artisan storage:link`. No final faz `exec "$@"` pra entregar o controle ao comando do container (FrankenPHP).
 - **`docker/php.ini`** — overrides do PHP aplicados via `conf.d/zz-app.ini`: `memory_limit`, limites de upload (`64M`), `max_execution_time`, timezone `UTC` e configurações do OPcache/JIT otimizadas pra produção (`opcache.validate_timestamps=0`, `opcache.jit=1255`, `jit_buffer_size=64M`).
 
-#### Como rodar
+#### Como rodar (primeira execução)
+
+Na primeira vez em que você sobe o projeto numa máquina nova, siga os passos abaixo na ordem. Eles existem por causa de um detalhe de como o Compose lida com `env_file`: variáveis definidas no `.env` entram no container como variáveis de ambiente, e uma `APP_KEY` vazia lá vira uma `APP_KEY` vazia em tempo de execução — o que faz o Laravel estourar `Illuminate\Encryption\MissingAppKeyException` em toda requisição.
+
+**1. Crie o arquivo `.env`**
+
+```bash
+cp .env.example .env
+```
+
+**2. Gere a `APP_KEY` e grave no `.env`**
+
+A `APP_KEY` do Laravel é só `base64:` seguido de 32 bytes aleatórios — exatamente o que o `php artisan key:generate` faz por baixo dos panos. Como o `vendor/` só existe dentro da imagem (e o entrypoint do container faz um monte de setup antes de qualquer comando rodar), o caminho mais limpo é gerar direto com `openssl` no host:
+
+```bash
+sed -i "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env
+```
+
+Confirme com `grep APP_KEY .env` — deve aparecer algo como `APP_KEY=base64:...`.
+
+**3. Suba a stack**
 
 ```bash
 docker compose up -d --build
 ```
 
-A API fica disponível em `http://localhost:8000`. As migrations rodam automaticamente no boot e o storage é persistido em volume.
+Isso builda a imagem, sobe o `mysql` e o `app`, roda as migrations automaticamente no boot (via `entrypoint.sh`) e deixa a API ouvindo em `http://localhost:8000`.
+
+**4. Verifique**
+
+```bash
+curl -i http://localhost:8000/up
+```
+
+Esperado: `HTTP/1.1 200 OK`. Esse é o healthcheck embutido do Laravel.
+
+#### Mudei o `.env` — e agora?
+
+Importante: `docker compose restart` **não** relê o `env_file`. Ele reaproveita as variáveis de ambiente que o container recebeu na criação. Toda vez que você editar o `.env`, recrie o container:
+
+```bash
+docker compose up -d app
+```
+
+O Compose detecta a mudança de config e faz `Recreate` no serviço automaticamente. Pra conferir se o valor novo chegou no container, use `docker exec instaclone-backend-app-1 printenv APP_KEY`.
