@@ -10,7 +10,7 @@ O projeto é dividido em duas partes independentes: o backend (API) e o frontend
 
 ### O que é
 
-Uma API RESTful construída com Laravel que gerencia toda a lógica de uma rede social: usuários, publicações e interações sociais. A API não possui views — toda a comunicação acontece via JSON, serializada por API Resources tipados (`UserResource`, `PostResource`, `CommentResource`, `NotificationResource`), simulando o backend de um aplicativo moderno.
+Uma API RESTful construída com Laravel que gerencia toda a lógica de uma rede social: usuários, publicações e interações sociais. Os endpoints da API respondem em JSON, serializados por API Resources tipados (`UserResource`, `PostResource`, `CommentResource`), simulando o backend de um aplicativo moderno. O projeto mantém apenas views auxiliares para a página inicial do Laravel e a documentação Swagger UI.
 
 ### Autenticação
 
@@ -18,7 +18,7 @@ O sistema utiliza Sanctum para autenticação. O usuário se cadastra, faz login
 
 ### Usuários e Perfis
 
-Cada usuário possui um perfil público com username único, foto de avatar, biografia e contadores de posts, seguidores e seguindo. O usuário pode editar seu próprio perfil e fazer upload de foto. Há também um endpoint de busca para encontrar outros usuários por nome ou username.
+Cada usuário possui um perfil consultável por username, com username único, foto de avatar e biografia. O usuário pode editar seu próprio perfil e fazer upload de foto. Há também um endpoint de busca por nome ou username e um endpoint de sugestões de usuários.
 
 ### Sistema de Follow
 
@@ -40,17 +40,13 @@ Os usuários podem curtir e descurtir posts. Cada curtida é um registro único 
 
 Os usuários podem comentar em posts. Cada comentário pertence a um usuário e a um post. Apenas o autor do comentário pode editá-lo ou deletá-lo, o que é garantido pela `CommentPolicy`. Os comentários são listados de forma paginada dentro de cada post.
 
-### Notificações
-
-As notificações são geradas automaticamente quando alguém curte um post, comenta ou começa a seguir o usuário. Elas são armazenadas no banco com tipo (enum `NotificationType`: `like`, `comment`, `follow`), dados em JSON e status de leitura. A API expõe `GET /api/notifications`, `GET /api/notifications/unread-count` e `PUT /api/notifications/read` para consumo futuro — o frontend atual ainda não tem tela dedicada para notificações.
-
 ### Dockerização
 
 O backend é totalmente dockerizado, permitindo subir toda a stack (API + banco) com um único comando. Toda a configuração vive em três pontos: o `Dockerfile`, o `compose.yaml` e o diretório `docker/`.
 
 #### Dockerfile
 
-A imagem da aplicação é construída em um `Dockerfile` multi-stage com dois estágios. O primeiro estágio usa a imagem oficial do Composer para instalar as dependências de produção do PHP (`composer install --no-dev`) com cache de build, copiar o código da aplicação e gerar o autoload otimizado (`composer dump-autoload --classmap-authoritative`). O segundo estágio parte da imagem `dunglas/frankenphp:1-php8.3-alpine`, que já traz o FrankenPHP como servidor web/runtime PHP pronto para produção. Nele são instaladas as extensões necessárias (`pdo_mysql`, `intl`, `zip`, `bcmath`, `opcache`, `pcntl`, `gd`, `redis`), o cliente `mysql-client` (usado pelo entrypoint pra aguardar o banco), o `tini` como init process e o `bash`. O código e o `vendor/` vêm copiados do estágio anterior. A imagem final expõe a porta `8000`, tem `HEALTHCHECK` contra o endpoint `/up` do Laravel e usa o `entrypoint.sh` como ponto de entrada, rodando o FrankenPHP via Caddyfile como comando padrão.
+A imagem da aplicação é construída em um `Dockerfile` multi-stage com dois estágios. O primeiro estágio usa a imagem oficial do Composer para instalar as dependências de produção do PHP (`composer install --no-dev`) com cache de build, copiar o código da aplicação e gerar o autoload otimizado (`composer dump-autoload --classmap-authoritative`). O segundo estágio parte, por padrão, da imagem `dunglas/frankenphp:1-php8.4-alpine`, que já traz o FrankenPHP como servidor web/runtime PHP pronto para produção. Nele são instaladas as extensões necessárias (`pdo_mysql`, `intl`, `zip`, `bcmath`, `opcache`, `pcntl`, `gd`, `redis`), o cliente `mysql-client` (usado pelo entrypoint pra aguardar o banco), o `tini` como init process e o `bash`. O código e o `vendor/` vêm copiados do estágio anterior. A imagem final expõe a porta `8000`, tem `HEALTHCHECK` contra o endpoint `/up` do Laravel e usa o `entrypoint.sh` como ponto de entrada, rodando o FrankenPHP via Caddyfile como comando padrão.
 
 #### compose.yaml
 
