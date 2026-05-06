@@ -6,6 +6,16 @@ O InstaClone é uma rede social inspirada no Instagram, construída como projeto
 
 O projeto é dividido em duas partes independentes: o backend (API) e o frontend (interface visual).
 
+## 📐 Especificação completa
+
+Este template inclui três artefatos que, juntos, definem 100% do contrato da API. Quem implementar seguindo todos os três deve produzir um backend byte-for-byte compatível com o frontend de referência:
+
+1. **[`docs/openapi.yaml`](./docs/openapi.yaml)** — contrato OpenAPI 3.0 com todos os endpoints, request/response schemas, status codes e regras de validação visíveis pelo cliente.
+2. **[`database/migrations/`](./database/migrations/)** — as 5 migrations customizadas (perfil, follows, posts, likes, comments) com colunas, tipos, índices e foreign keys exatos. As migrations padrão (`users`, `cache`, `jobs`, `personal_access_tokens`) são geradas por `laravel new` + `php artisan install:api`.
+3. **[`SPEC.md`](./SPEC.md)** — regras de implementação que OpenAPI e migrations não cobrem: validação `FormRequest`, policies, exceptions customizadas, algoritmos de search/suggestions/feed, comportamento idempotente de follow/like, paths de upload, formato de wrapping `{data: ...}` por recurso, defaults de paginação, e mais.
+
+O README abaixo descreve o **projeto** em alto nível (features, justificativa de cada parte). Para implementar o backend, leia o **OpenAPI primeiro**, depois as **migrations**, depois o **SPEC.md**.
+
 ## Backend (API Laravel)
 
 ### O que é

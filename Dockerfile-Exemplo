@@ -50,6 +50,7 @@ COPY --from=vendor /app        ./
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 COPY docker/php.ini       /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/Caddyfile     /etc/caddy/Caddyfile
 
 RUN chmod +x /usr/local/bin/entrypoint \
  && mkdir -p storage/framework/{cache,sessions,testing,views} storage/logs bootstrap/cache \

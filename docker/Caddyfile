@@ -1,0 +1,28 @@
+{
+	frankenphp
+	order php_server before file_server
+}
+
+{$SERVER_NAME:":8000"} {
+	root * public/
+	encode zstd br gzip
+
+	handle /storage/* {
+		@allowedOrigin header_regexp Origin ^https?://(localhost|127\.0\.0\.1):(3000|5173|8080)$
+		@preflight method OPTIONS
+
+		header Vary Origin
+		header Cross-Origin-Resource-Policy "cross-origin"
+		header @allowedOrigin Access-Control-Allow-Origin "{http.request.header.Origin}"
+		header @allowedOrigin Access-Control-Allow-Methods "GET, OPTIONS"
+		header @allowedOrigin Access-Control-Max-Age "86400"
+
+		respond @preflight 204
+
+		file_server
+	}
+
+	handle {
+		php_server
+	}
+}
